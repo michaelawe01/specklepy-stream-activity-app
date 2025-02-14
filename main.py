@@ -1,58 +1,59 @@
-#--------------------------
-#IMPORT LIBRARIES
-#import streamlit
 import streamlit as st
-#specklepy libraries
+import pandas as pd
+import plotly.express as px
+
+# SpecklePy libraries
+from specklepy.api.client import SpeckleClient
+from specklepy.api.credentials import get_default_account
+from specklepy.api import operations
+from specklepy.transports.server import ServerTransport
+from specklepy.objects import Base
+from specklepy.api.resources.current.version_resource import CreateVersionInput
 from specklepy.api.client import SpeckleClient
 from specklepy.api.credentials import get_account_from_token
-#import pandas
-import pandas as pd
-#import plotly express
-import plotly.express as px
-#--------------------------
 
-#--------------------------
-#PAGE CONFIG
+
+
+# --------------------------
+# PAGE CONFIG
 st.set_page_config(
     page_title="Speckle Stream Activity",
-    page_icon="📊"
+    page_icon="📊",
+    layout="wide"
 )
-#--------------------------
 
-#--------------------------
-#CONTAINERS
+# --------------------------
+# CONTAINERS
 header = st.container()
-input = st.container()
+input_section = st.container()
 viewer = st.container()
 report = st.container()
 graphs = st.container()
-#--------------------------
 
-#--------------------------
-#HEADER
-#Page Header
+# --------------------------
+# HEADER
 with header:
-    st.title("Speckle Stream Activity App📈")
-#About info
-with header.expander("About this app🔽", expanded=True):
-    st.markdown(
-        """This is a beginner web app developed using Streamlit. My goal was to understand how to interact with Speckle API using SpecklePy, 
-        analyze what is received and its structure. This was easy and fun experiment.
-        """
-    )
-#--------------------------
+    st.title("Speckle Stream Activity App 📈")
+    with st.expander("About this app 🕺", expanded=True):
+        st.markdown(
+            """This is a beginner web app developed using Streamlit to interact with Speckle API via SpecklePy. 
+            The app retrieves and modifies elements in a Revit model stored in Speckle.
+            """
+        )
 
-#--------------------------
-#INPUTS
-with input:
+# --------------------------
+# INPUT SECTION
+#with input:
     st.subheader("Inputs")
 
     #-------
     #Columns for inputs
-    serverCol, tokenCol = st.columns([1,3])
+    serverCol, tokenCol = st.columns([1,2])
     #User Input boxes
-    speckleServer = serverCol.text_input("Server URL", "speckle.xyz", help="Speckle server to connect.")
-    speckleToken = tokenCol.text_input("Speckle token", "087fea753d12f91a6f692c8ea087c1bf4112e93ed7", help="If you don't know how to get your token, take a look at this [link](https://speckle.guide/dev/tokens.html)👈")
+    speckleServer = serverCol.text_input("Server URL", "https://app.speckle.systems/", help="Speckle server to connect.")
+    #speckleToken = tokenCol.text_input("Speckle token", "45a6c0a785c010db4e1638874eacafc80e149a0aea", help="If you don't know how to get your token, take a look at this [link](https://speckle.guide/dev/tokens.html)👈")
+    speckleToken = tokenCol.text_input("Speckle token", "41a16744bad8cff7fe9ca526205ab57e004666da1c", help="If you don't know how to get your token, take a look at this [link](https://speckle.guide/dev/tokens.html)👈")
+    
     #-------
 
     #-------
@@ -66,173 +67,82 @@ with input:
 
     #-------
     #Streams List👇
-    streams = client.stream.list()
-    #Get Stream Names
-    streamNames = [s.name for s in streams]
-    #Dropdown for stream selection
-    sName = st.selectbox(label="Select your stream", options=streamNames, help="Select your stream from the dropdown")
-    #SELECTED STREAM ✅
-    stream = client.stream.search(sName)[0]
-    #Stream Branches 🌴
-    branches = client.branch.list(stream.id)
-    #Stream Commits 🏹
-    commits = client.commit.list(stream.id, limit=100)
-    #-------
-#--------------------------
+    
+    #streams = client.active_user.get_projects
+    #st.write(streams)
 
-#--------------------------
-#DEFINITIONS
+    projects = client.active_user.get_projects()
+    projectNames = [p.name for p in projects.items]
+    # Dropdown for project selection
+    pName = st.selectbox(label="Select your project", options=projectNames)
+
+    # Find the selected project by name
+    selected_project = next((p for p in projects.items if p.name == pName), None)
+
+    # Get models related to the selected project
+    models = client.model.get_models(project_id=selected_project.id)
+    modelNames = [m.name for m in models.items]
+    # Dropdown for model selection
+    mName = st.selectbox(label="Select your model", options=modelNames)
+
+    # Find the selected model by name
+    selected_model = next((m for m in models.items if m.name == mName), None)
+
+    # Get versions related to the selected model
+    versions = client.version.get_versions(project_id=selected_project.id, model_id=selected_model.id, limit=100)
+
+
+    # Display the results (optional)
+    st.write("Selected Project:", selected_project)
+    st.write("Selected Model:", selected_model)
+    st.write("Versions:", versions)
+
 #create a definition to convert your list to markdown
 def listToMarkdown(list, column):
     list = ["- " + i + " \n" for i in list]
     list = "".join(list)
     return column.markdown(list)
 
-#create a definition that creates iframe from commit id
-def commit2viewer(stream, commit, height=400) -> str:
-    embed_src = "https://speckle.xyz/embed?stream="+stream.id+"&commit="+commit.id
-    return st.components.v1.iframe(src=embed_src, height=height)
-#--------------------------
 
-#--------------------------
-#VIEWER👁‍🗨
+def model2viewer(projects, models):
+    embed_src = f"https://app.speckle.systems/projects/{projects.id}/models/{models.id}#embed=%7B%22isEnabled%22%3Atrue%7D"
+    return embed_src  # Return the correct URL
+
 with viewer:
-    st.subheader("Latest Commit👇")
-    commit2viewer(stream, commits[0])
-#--------------------------
+    st.subheader("Latest version👇")
+    #<iframe title="Speckle" src="https://app.speckle.systems/projects/96d2667014/models/a0db08e966#embed=%7B%22isEnabled%22%3Atrue%7D" width="600" height="400" frameborder="0"></iframe>
+    #st.components.v1.iframe(src= "https://app.speckle.systems/projects/96d2667014/models/a0db08e966#embed=%7B%22isEnabled%22%3Atrue%7D", width=600, height=400)
+    
 
-#--------------------------
+
+    embed_link = model2viewer(selected_project, selected_model)
+
+    #embed_link = model2viewer(projects, models)
+    st.components.v1.iframe(src=embed_link, width=600, height=400)
+
+
+
 #REPORT
 with report:
     st.subheader("Statistics")
 
-    #-------
-    # Columns for Cards
-    branchCol, commitCol, connectorCol, contributorCol = st.columns(4)
-    #-------
+    projectCol, versionCol, connectorCol, contributorCol = st.columns(4)
 
-    #-------
-    #Branch Card 💳
-    branchCol.metric(label = "Number of branches", value= stream.branches.totalCount)
-    #branch names as markdown list
-    branchNames = [b.name for b in branches]
-    listToMarkdown(branchNames, branchCol)
-    #-------
 
-    #-------
-    #Commit Card 💳
-    commitCol.metric(label = "Number of commits", value= len(commits))
-    #-------
+    connectorList = [v.sourceApplication for v in versions.items]
 
-    #-------
-    #Connector Card 💳
-    #connector list
-    connectorList = [c.sourceApplication for c in commits]
-    #number of connectors
-    connectorCol.metric(label="Number of connectors", value= len(dict.fromkeys(connectorList)))
-    #get connector names
-    connectorNames = list(dict.fromkeys(connectorList))
-    #convert it to markdown list
-    listToMarkdown(connectorNames, connectorCol)
-    #-------
+    projectCol.metric(label="Number of Projects", value = len(projects.items))
+    #st.write([p.name for p in projects.items])
+    listToMarkdown([p.name for p in projects.items], projectCol)
 
-    #-------
-    #Contributor Card 💳
-    contributorCol.metric(label = "Number of contributors", value= len(stream.collaborators))
-    #unique contributor names
-    contributorNames = list(dict.fromkeys([col.name for col in stream.collaborators]))
-    #convert it to markdown list
-    listToMarkdown(contributorNames,contributorCol)
-    #-------
 
-#--------------------------
+    versionCol.metric(label="Number of versions", value = versions.totalCount)
 
-#--------------------------
-with graphs:
-    st.subheader("Graphs")
-    #COLUMNS FOR CHARTS
-    branch_graph_col, connector_graph_col, collaborator_graph_col = st.columns([2,1,1])
-    
-    #-------
-    #BRANCH GRAPH 📊
-    #branch count dataframe
-    branch_counts = pd.DataFrame([[branch.name, branch.commits.totalCount] for branch in branches])
-    #rename dataframe columns
-    branch_counts.columns = ["branchName", "totalCommits"]
-    #create graph
-    branch_count_graph = px.bar(branch_counts, x=branch_counts.branchName, y=branch_counts.totalCommits, color=branch_counts.branchName, labels={"branchName":"","totalCommits":""})
-    #update layout
-    branch_count_graph.update_layout(
-        showlegend = False,
-        margin = dict(l=1,r=1,t=1,b=1),
-        height=220)
-    #show graph
-    branch_graph_col.plotly_chart(branch_count_graph, use_container_width=True)
-    #-------
+    connectorCol.metric(label="Number of connectors", value = len(dict.fromkeys(connectorList)))
+    listToMarkdown([v.sourceApplication for v in versions.items], connectorCol)
 
-    #-------
-    #CONNECTOR CHART 🍩
-    commits= pd.DataFrame.from_dict([c.dict() for c in commits])
-    #get apps from commits
-    apps = commits["sourceApplication"]
-    #reset index
-    apps = apps.value_counts().reset_index()
-    #rename columns
-    apps.columns=["app","count"]
-    #donut chart
-    fig = px.pie(apps, names=apps["app"],values=apps["count"], hole=0.5)
-    #set dimensions of the chart
-    fig.update_layout(
-        showlegend=False,
-        margin=dict(l=1, r=1, t=1, b=1),
-        height=200,
-        yaxis_scaleanchor="x"
-        )
-    #set width of the chart so it uses column width
-    connector_graph_col.plotly_chart(fig, use_container_width=True)
-    #-------
+    #contributorCol.metric(label="Number of collaborators", value = len(selected_model.author))
+    #st.write([selected_model.author])
 
-    #-------
-    #COLLABORATOR CHART 🍩
-    #get authors from commits
-    authors = commits["authorName"].value_counts().reset_index()
-    #rename columns
-    authors.columns=["author","count"]
-    #create our chart
-    authorFig = px.pie(authors, names=authors["author"], values=authors["count"],hole=0.5)
-    authorFig.update_layout(
-        showlegend=False,
-        margin=dict(l=1,r=1,t=1,b=1),
-        height=200,
-        yaxis_scaleanchor="x",)
-    collaborator_graph_col.plotly_chart(authorFig, use_container_width=True)   
-    #-------
-    
-    #-------
-    #COMMIT PANDAS TABLE 🔲
-    st.subheader("Commit Activity Timeline 🕒")
-    #created at parameter to dataframe with counts
-    cdate = pd.to_datetime(commits["createdAt"]).dt.date.value_counts().reset_index().sort_values("index")
-    #date range to fill null dates.
-    null_days = pd.date_range(start=cdate["index"].min(), end=cdate["index"].max())
-    #add null days to table
-    cdate = cdate.set_index("index").reindex(null_days, fill_value=0)
-    #reset index
-    cdate = cdate.reset_index()
-    #rename columns
-    cdate.columns = ["date", "count"]
-    #redate indexed dates
-    cdate["date"] = pd.to_datetime(cdate["date"]).dt.date
-    #-------
 
-    #-------
-    #COMMIT ACTIVITY LINE CHART📈
-    #line chart
-    fig = px.line(cdate, x=cdate["date"], y=cdate["count"], markers =True)
-    #recolor line
-    
-    #Show Chart
-    st.plotly_chart(fig, use_container_width=True)
-    #-------
-
-#--------------------------
+#not motivated to continue as the rest of the graphs is not part of the scope of what I am learning to build. This updates will be useful for anyone looking to follow through your work.
