@@ -18,7 +18,6 @@ from specklepy.api.credentials import get_account_from_token
 # PAGE CONFIG
 st.set_page_config(
     page_title="Speckle Stream Activity",
-    page_icon="📊",
     layout="wide"
 )
 
@@ -33,43 +32,35 @@ graphs = st.container()
 # --------------------------
 # HEADER
 with header:
-    st.title("Speckle Stream Activity App 📈")
-    with st.expander("About this app 🕺", expanded=True):
+    st.title("Speckle Stream Activity App ")
+    with st.expander("About this app", expanded=True):
         st.markdown(
             """This is a beginner web app developed using Streamlit to interact with Speckle API via SpecklePy. 
             The app retrieves and modifies elements in a Revit model stored in Speckle.
             """
         )
 
-# --------------------------
 # INPUT SECTION
 #with input:
     st.subheader("Inputs")
 
-    #-------
     #Columns for inputs
     serverCol, tokenCol = st.columns([1,2])
     #User Input boxes
     speckleServer = serverCol.text_input("Server URL", "https://app.speckle.systems/", help="Speckle server to connect.")
-    #speckleToken = tokenCol.text_input("Speckle token", "45a6c0a785c010db4e1638874eacafc80e149a0aea", help="If you don't know how to get your token, take a look at this [link](https://speckle.guide/dev/tokens.html)👈")
-    speckleToken = tokenCol.text_input("Speckle token", "41a16744bad8cff7fe9ca526205ab57e004666da1c", help="If you don't know how to get your token, take a look at this [link](https://speckle.guide/dev/tokens.html)👈")
+    #speckleToken = tokenCol.text_input("Speckle token", "YOUR OWN TOKEN", help="If you don't know how to get your token, take a look at this [link](https://speckle.guide/dev/tokens.html)👈")
+    speckleToken = tokenCol.text_input("Speckle token", "YOUR OWN TOKEN", help="If you don't know how to get your token, take a look at this [link](https://speckle.guide/dev/tokens.html)👈")
     
-    #-------
 
-    #-------
     #CLIENT
     client = SpeckleClient(host=speckleServer)
     #Get account from Token
     account = get_account_from_token(speckleToken, speckleServer)
     #Authenticate
     client.authenticate_with_account(account)
-    #-------
 
-    #-------
-    #Streams List👇
     
-    #streams = client.active_user.get_projects
-    #st.write(streams)
+    #Projects List
 
     projects = client.active_user.get_projects()
     projectNames = [p.name for p in projects.items]
@@ -113,16 +104,9 @@ with viewer:
     #<iframe title="Speckle" src="https://app.speckle.systems/projects/96d2667014/models/a0db08e966#embed=%7B%22isEnabled%22%3Atrue%7D" width="600" height="400" frameborder="0"></iframe>
     #st.components.v1.iframe(src= "https://app.speckle.systems/projects/96d2667014/models/a0db08e966#embed=%7B%22isEnabled%22%3Atrue%7D", width=600, height=400)
     
-
-
     embed_link = model2viewer(selected_project, selected_model)
-
-    #embed_link = model2viewer(projects, models)
     st.components.v1.iframe(src=embed_link, width=600, height=400)
 
-
-
-#REPORT
 with report:
     st.subheader("Statistics")
 
@@ -145,4 +129,4 @@ with report:
     #st.write([selected_model.author])
 
 
-#not motivated to continue as the rest of the graphs is not part of the scope of what I am learning to build. This updates will be useful for anyone looking to follow through your work.
+# I am not motivated to continue as the rest of the graphs are not part of the scope of what I am learning to build. These updates will be useful for anyone looking to follow through with your work.
